@@ -21,7 +21,7 @@ import dji.common.util.CommonCallbacks
 import dji.log.DJILog
 import dji.sdk.camera.Camera
 import dji.sdk.media.*
-import dji.sdk.media.MediaManager.*
+import dji.sdk.media.MediaManager.FileListState
 import java.io.File
 
 class MediaManagerActivity : AppCompatActivity(), View.OnClickListener {
@@ -139,7 +139,7 @@ class MediaManagerActivity : AppCompatActivity(), View.OnClickListener {
         listView.layoutManager = layoutManager
 
         //Instantiating a FileListAdapter and setting it as the recycler view's adapter
-        mListAdapter = FileListAdapter(::onThumbnailClick, ::onFileClick)
+        val mListAdapter = FileListAdapter(::onThumbnailClick, ::onFileClick)
         listView.adapter = mListAdapter
 
         //Creating a ProgressDialog and configuring its behavioural settings as a loading screen
@@ -249,8 +249,7 @@ class MediaManagerActivity : AppCompatActivity(), View.OnClickListener {
         //If there is no DJI product connected to the mobile device...
         if (DJIApplication.getProductInstance() == null) {
             //clear the mediaFileList and notify the recycler view's adapter is that its dataset has changed
-            mediaFileList.clear()
-            mListAdapter.notifyDataSetChanged()
+            mListAdapter.setMediaFiles(emptyList())
 
             DJILog.e(TAG, "Product disconnected")
             return
