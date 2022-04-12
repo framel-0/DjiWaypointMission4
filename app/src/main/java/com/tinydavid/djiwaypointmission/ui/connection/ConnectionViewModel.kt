@@ -5,7 +5,6 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import dji.common.error.DJIError
 import dji.common.error.DJISDKError
 import dji.sdk.base.BaseComponent
@@ -103,4 +102,5 @@ class ConnectionViewModel @Inject constructor(
                 override fun onDatabaseDownloadProgress(p0: Long, p1: Long) {}
             })
     }
+
 }

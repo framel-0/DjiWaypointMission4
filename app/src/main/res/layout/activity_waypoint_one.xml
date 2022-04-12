@@ -1,95 +1,168 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:mapbox="http://schemas.android.com/apk/res-auto"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#FFFFFF"
-    android:orientation="vertical"
+    android:orientation="horizontal"
+    android:paddingStart="8dp"
+    android:paddingTop="10dp"
+    android:paddingEnd="8dp"
+    android:paddingBottom="10dp"
     tools:context=".ui.waypoint.WaypointOneActivity">
 
     <LinearLayout
-        android:layout_width="match_parent"
+        android:id="@+id/linearLayout5"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:orientation="horizontal">
+        android:orientation="vertical"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
 
-        <TextView
-            android:id="@+id/ConnectStatusTextView"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:text="GSDemo"
-            android:textColor="#000000"
-            android:textSize="21sp" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/text_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="GSDemo"
+                android:textColor="#000000"
+                android:textSize="21sp" />
+
+            <TextView
+                android:id="@+id/text_waypoint_distance_time"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                tools:text="TextView"
+                android:textSize="16sp" />
+        </LinearLayout>
+
+        <View
+            android:id="@+id/divider2"
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="?android:attr/listDivider" />
     </LinearLayout>
 
     <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal">
+        android:id="@+id/linearLayout4"
+        android:layout_width="wrap_content"
+        android:layout_height="0dp"
+        android:layout_marginTop="8dp"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toTopOf="@+id/linearLayout3"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/linearLayout5">
 
-        <Button
-            android:id="@+id/locate"
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/button_locate"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:text="Locate" />
 
-        <Button
-            android:id="@+id/add"
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/button_add_waypoint"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:text="Add" />
 
-        <Button
-            android:id="@+id/clear"
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/button_clear_waypoint"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Clear" />
+            android:text="Clear"
+            android:visibility="invisible" />
     </LinearLayout>
 
     <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal">
+        android:id="@+id/linearLayout3"
+        android:layout_width="wrap_content"
+        android:layout_height="0dp"
+        android:layout_marginTop="8dp"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/linearLayout4">
 
-        <Button
-            android:id="@+id/config"
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/button_config_waypoint"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="0.9"
             android:text="Config" />
 
-        <Button
-            android:id="@+id/upload"
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/button_start_waypoint"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="0.9"
-            android:text="Upload" />
-
-        <Button
-            android:id="@+id/start"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:text="Start" />
 
-        <Button
-            android:id="@+id/stop"
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/button_stop_waypoint"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:text="Stop" />
     </LinearLayout>
 
     <com.mapbox.maps.MapView
         android:id="@+id/map_view"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        mapbox:mapbox_cameraTargetLat="-0.2971010146602566"
-        mapbox:mapbox_cameraTargetLng="5.560512230316817"
-        mapbox:mapbox_cameraZoom="9.0" />
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="8dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/linearLayout6"
+        app:layout_constraintStart_toEndOf="@+id/linearLayout4"
+        app:layout_constraintTop_toBottomOf="@+id/linearLayout5"
+        app:mapbox_cameraTargetLat="-0.2971010146602566"
+        app:mapbox_cameraTargetLng="5.560512230316817"
+        app:mapbox_cameraZoom="9.0" />
 
-</LinearLayout>
+    <TextureView
+        android:id="@+id/video_previewer_surface_d"
+        android:layout_width="250dp"
+        android:layout_height="0dp"
+        android:layout_gravity="center"
+        app:layout_constraintBottom_toBottomOf="@+id/map_view"
+        app:layout_constraintDimensionRatio="h,16:9"
+        app:layout_constraintEnd_toEndOf="@+id/map_view" />
+
+    <LinearLayout
+        android:id="@+id/linearLayout6"
+        android:layout_width="wrap_content"
+        android:layout_height="0dp"
+        android:layout_marginEnd="1dp"
+        android:layout_marginBottom="2dp"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/linearLayout5">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/button_camera_view"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Camera View"
+            app:strokeColor="@color/deep_orange"
+            app:strokeWidth="2dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/button2"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Button"
+            android:visibility="gone"
+            app:strokeColor="@color/deep_orange" />
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

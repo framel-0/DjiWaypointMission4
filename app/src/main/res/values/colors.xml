@@ -8,6 +8,14 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
 
+    <color name="deep_orange">#FF7043</color>
+    <color name="deep_orange_light">#ffa270</color>
+    <color name="deep_orange_dark">#c63f17</color>
+
+    <color name="yellow">#F9A825</color>
+    <color name="yellow_light">#ffd95a</color>
+    <color name="yellow_dark">#c17900</color>
+
     <color name="black_overlay">#000000</color>
     <color name="colorWhite">#FFFFFF</color>
     <color name="background_blue">#242d34</color>

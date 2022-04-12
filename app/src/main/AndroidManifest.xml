@@ -42,19 +42,24 @@
         android:theme="@style/Theme.DjiWaypointMission">
         <activity
             android:name=".ui.media_manager.MediaManagerActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:screenOrientation="landscape" />
         <activity
             android:name=".ui.geo.GeoActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:screenOrientation="landscape" />
         <activity
             android:name=".ui.waypoint.WaypointOneActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:screenOrientation="landscape" />
         <activity
             android:name=".ui.camera.CameraActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:screenOrientation="landscape" />
         <activity
             android:name=".ui.connection.ConnectionActivity"
-            android:exported="true">
+            android:exported="true"
+            android:screenOrientation="landscape">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -66,7 +71,8 @@
         </activity>
         <activity
             android:name=".ui.main.MainActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:screenOrientation="landscape" />
 
         <uses-library android:name="com.android.future.usb.accessory" />
         <uses-library

@@ -1,12 +1,15 @@
 package com.tinydavid.djiwaypointmission.ui.waypoint
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.SurfaceTexture
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.util.Log
+import android.view.TextureView
 import android.view.View
 import android.widget.*
 import androidx.annotation.DrawableRes
@@ -18,7 +21,6 @@ import com.mapbox.geojson.Point
 import com.mapbox.mapboxsdk.annotations.IconFactory
 import com.mapbox.mapboxsdk.annotations.Marker
 import com.mapbox.mapboxsdk.annotations.MarkerOptions
-import com.mapbox.mapboxsdk.camera.CameraUpdateFactory
 import com.mapbox.mapboxsdk.geometry.LatLng
 import com.mapbox.maps.CameraOptions
 import com.mapbox.maps.MapView
@@ -41,44 +43,53 @@ import com.mapbox.maps.plugin.locationcomponent.location
 import com.tinydavid.djiwaypointmission.DJIApplication
 import com.tinydavid.djiwaypointmission.R
 import com.tinydavid.djiwaypointmission.databinding.ActivityWaypointOneBinding
+import com.tinydavid.djiwaypointmission.ui.camera.CameraActivity
 import com.tinydavid.djiwaypointmission.utils.LocationPermissionHelper
 import dji.common.error.DJIError
 import dji.common.mission.waypoint.*
+import dji.sdk.camera.VideoFeeder
+import dji.sdk.codec.DJICodecManager
 import dji.sdk.mission.waypoint.WaypointMissionOperator
 import dji.sdk.mission.waypoint.WaypointMissionOperatorListener
 import dji.sdk.sdkmanager.DJISDKManager
 import java.lang.ref.WeakReference
 import java.util.concurrent.ConcurrentHashMap
 
-class WaypointOneActivity : AppCompatActivity(), View.OnClickListener {
+class WaypointOneActivity : AppCompatActivity(), TextureView.SurfaceTextureListener,
+    View.OnClickListener {
 
     private lateinit var mBinding: ActivityWaypointOneBinding
 
+    private lateinit var mDistanceTimeTextView: TextView
+    private lateinit var mStatusTextView: TextView
     private lateinit var mLocateButton: Button
     private lateinit var mAddButton: Button
     private lateinit var mClearButton: Button
     private lateinit var configButton: Button
-    private lateinit var mUploadButton: Button
     private lateinit var mStartButton: Button
     private lateinit var mStopButton: Button
 
     private lateinit var mapView: MapView
 
+    private lateinit var mVideoSurface: TextureView //Used to display the DJI product's camera video stream
+
     private var isAdd = false
-    private var droneLocationLat: Double = 15.0
-    private var droneLocationLng: Double = 15.0
+    private var droneLocationLat: Double = 0.0
+    private var droneLocationLng: Double = 0.0
     private var droneMarker: Marker? = null
     private val markers: MutableMap<Int, Marker> = ConcurrentHashMap<Int, Marker>()
 
     private lateinit var locationPermissionHelper: LocationPermissionHelper
 
+    private lateinit var mMapboxMap: MapboxMap
+
     private val onIndicatorBearingChangedListener = OnIndicatorBearingChangedListener {
-        mapView.getMapboxMap().setCamera(CameraOptions.Builder().bearing(it).build())
+        mMapboxMap.setCamera(CameraOptions.Builder().bearing(it).build())
     }
 
     private val onIndicatorPositionChangedListener = OnIndicatorPositionChangedListener {
-        mapView.getMapboxMap().setCamera(CameraOptions.Builder().center(it).build())
-        mapView.gestures.focalPoint = mapView.getMapboxMap().pixelForCoordinate(it)
+        mMapboxMap.setCamera(CameraOptions.Builder().center(it).build())
+        mapView.gestures.focalPoint = mMapboxMap.pixelForCoordinate(it)
     }
 
     private val onMoveListener = object : OnMoveListener {
@@ -119,15 +130,19 @@ class WaypointOneActivity : AppCompatActivity(), View.OnClickListener {
         true
     }
 
-    private lateinit var mMapboxMap: MapboxMap
 
     private var altitude = 100f
     private var speed = 10f
 
     private val waypointList = mutableListOf<Waypoint>()
     private var instance: WaypointMissionOperator? = null
-    private var finishedAction = WaypointMissionFinishedAction.NO_ACTION
+    private var finishedAction = WaypointMissionFinishedAction.GO_HOME
     private var headingMode = WaypointMissionHeadingMode.AUTO
+
+    private var receivedVideoDataListener: VideoFeeder.VideoDataListener? = null
+    private var codecManager: DJICodecManager? =
+        null //handles the encoding and decoding of video data
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -143,6 +158,14 @@ class WaypointOneActivity : AppCompatActivity(), View.OnClickListener {
         locationPermissionHelper = LocationPermissionHelper(WeakReference(this))
         locationPermissionHelper.checkPermissions {
             onMapReady()
+        }
+
+        /*
+       The receivedVideoDataListener receives the raw video data and the size of the data from the DJI product.
+       It then sends this data to the codec manager for decoding.
+       */
+        receivedVideoDataListener = VideoFeeder.VideoDataListener { videoBuffer, size ->
+            codecManager?.sendDataToDecoder(videoBuffer, size)
         }
 
         addListener() // will add a listener to the waypoint mission operator
@@ -163,28 +186,27 @@ class WaypointOneActivity : AppCompatActivity(), View.OnClickListener {
         ) {
 //            initLocationComponent()
             setupGesturesListener()
-            addAnnotationToMap(5.560512230316817, -0.2971010146602566)
         }
 
 
     }
 
     private fun addAnnotationToMap(lng: Double, lat: Double) {
-// Create an instance of the Annotation API and get the PointAnnotationManager.
+        // Create an instance of the Annotation API and get the PointAnnotationManager.
         bitmapFromDrawableRes(
             this@WaypointOneActivity,
             R.drawable.red_marker
         )?.let {
-            val annotationApi = mapView?.annotations
-            val pointAnnotationManager = annotationApi?.createPointAnnotationManager(mapView!!)
-// Set options for the resulting symbol layer.
+            val annotationApi = mapView.annotations
+            val pointAnnotationManager = annotationApi.createPointAnnotationManager(mapView)
+            // Set options for the resulting symbol layer.
             val pointAnnotationOptions: PointAnnotationOptions = PointAnnotationOptions()
-// Define a geographic coordinate.
+                // Define a geographic coordinate.
                 .withPoint(Point.fromLngLat(lng, lat))
-// Specify the bitmap you assigned to the point annotation
-// The bitmap will be added to map style automatically.
+                // Specify the bitmap you assigned to the point annotation
+                // The bitmap will be added to map style automatically.
                 .withIconImage(it)
-// Add the resulting pointAnnotation to the map.
+            // Add the resulting pointAnnotation to the map.
             pointAnnotationManager.create(pointAnnotationOptions)
         }
     }
@@ -246,6 +268,7 @@ class WaypointOneActivity : AppCompatActivity(), View.OnClickListener {
                 }.toJson()
             )
         }
+//        locationComponentPlugin.
         locationComponentPlugin.addOnIndicatorPositionChangedListener(
             onIndicatorPositionChangedListener
         )
@@ -308,19 +331,32 @@ class WaypointOneActivity : AppCompatActivity(), View.OnClickListener {
     }
 
     private fun initUi() {
-        mLocateButton = findViewById(R.id.locate)
-        mAddButton = findViewById(R.id.add)
-        mClearButton = findViewById(R.id.clear)
-        configButton = findViewById(R.id.config)
-        mUploadButton = findViewById(R.id.upload)
-        mStartButton = findViewById(R.id.start)
-        mStopButton = findViewById(R.id.stop)
+        mDistanceTimeTextView = mBinding.textWaypointDistanceTime
+        mStatusTextView = mBinding.textStatus
+        mLocateButton = mBinding.buttonLocate
+        mAddButton = mBinding.buttonAddWaypoint
+        mClearButton = mBinding.buttonClearWaypoint
+
+        configButton = mBinding.buttonConfigWaypoint
+        mStartButton = mBinding.buttonStartWaypoint
+        mStopButton = mBinding.buttonStopWaypoint
+
+        mVideoSurface = mBinding.videoPreviewerSurfaceD
+
+        /*
+        Giving videoSurface a listener that checks for when a surface texture is available.
+        The videoSurface will then display the surface texture, which in this case is a camera video stream.
+        */
+        mVideoSurface.surfaceTextureListener = this
+
+        mStartButton.isEnabled = false
+        mStopButton.isEnabled = false
 
         mLocateButton.setOnClickListener(this)
         mAddButton.setOnClickListener(this)
         mClearButton.setOnClickListener(this)
+
         configButton.setOnClickListener(this)
-        mUploadButton.setOnClickListener(this)
         mStartButton.setOnClickListener(this)
         mStopButton.setOnClickListener(this)
     }
@@ -355,20 +391,7 @@ class WaypointOneActivity : AppCompatActivity(), View.OnClickListener {
         runOnUiThread {
             droneMarker?.remove()
             if (checkGpsCoordination(droneLocationLat, droneLocationLng)) {
-                val point = Point.fromLngLat(droneLocationLng, droneLocationLat)
-                mMapboxMap.flyTo(
-                    cameraOptions {
-                        center(point) // Sets the new camera position on click point
-                        zoom(15.0) // Sets the zoom
-                        bearing(180.0) // Rotate the camera
-                        pitch(60.0) // Set the camera pitch
-                    },
-                    mapAnimationOptions {
-                        duration(7000)
-                    }
-                )
                 addAnnotationToMap(droneLocationLng, droneLocationLat)
-//                droneMarker = mapboxMap?.addMarker(markerOptions)
             }
         }
     }
@@ -377,10 +400,19 @@ class WaypointOneActivity : AppCompatActivity(), View.OnClickListener {
         if (droneLocationLat.isNaN() || droneLocationLng.isNaN()) {
             return
         }
-        val pos = LatLng(droneLocationLat, droneLocationLng)
+        val point = Point.fromLngLat(droneLocationLng, droneLocationLat)
         val zoomLevel = 18.0
-        val cameraUpdate = CameraUpdateFactory.newLatLngZoom(pos, zoomLevel)
-//        mapboxMap?.moveCamera(cameraUpdate)
+        mMapboxMap.flyTo(
+            cameraOptions {
+                center(point) // Sets the new camera position on click point
+                zoom(zoomLevel) // Sets the zoom
+                bearing(180.0) // Rotate the camera
+                pitch(60.0) // Set the camera pitch
+            },
+            mapAnimationOptions {
+                duration(7000)
+            }
+        )
     }
 
     private fun showSettingsDialog() {
@@ -492,29 +524,30 @@ class WaypointOneActivity : AppCompatActivity(), View.OnClickListener {
 
     override fun onClick(v: View?) {
         when (v?.id) {
-            R.id.locate -> { // will draw the drone and move camera to the position of the drone on the map
+            R.id.button_locate -> { // will draw the drone and move camera to the position of the drone on the map
                 updateDroneLocation()
                 cameraUpdate()
             }
-            R.id.add -> { // this will toggle the adding of the waypoints
+            R.id.button_add_waypoint -> { // this will toggle the adding of the waypoints
                 enableDisableAdd()
             }
-            R.id.clear -> { // clear the waypoints on the map
+            R.id.button_clear_waypoint -> { // clear the waypoints on the map
                 runOnUiThread {
 //                    mapboxMap?.clearData()
                 }
             }
-            R.id.config -> { // this will show the settings
+            R.id.button_config_waypoint -> { // this will show the settings
                 showSettingsDialog()
             }
-            R.id.upload -> { // this will upload the mission to the drone so that it can execute it
+
+            R.id.button_start_waypoint -> { // this will let the drone start navigating to the waypoints
                 uploadWaypointMission()
             }
-            R.id.start -> { // this will let the drone start navigating to the waypoints
-                startWaypointMission()
-            }
-            R.id.stop -> { // this will immediately stop the waypoint mission
+            R.id.button_stop_waypoint -> { // this will immediately stop the waypoint mission
                 stopWaypointMission()
+            }
+            R.id.button_camera_view -> { // this will immediately stop the waypoint mission
+                startActivity(this@WaypointOneActivity, CameraActivity::class.java)
             }
             else -> {}
         }
@@ -547,6 +580,7 @@ class WaypointOneActivity : AppCompatActivity(), View.OnClickListener {
             getWaypointMissionOperator()?.let { operator ->
                 val error = operator.loadMission(builder.build()) // load the mission
                 if (error == null) {
+                    mStartButton.isEnabled = true
                     setResultToToast("loadWaypoint succeeded")
                 } else {
                     setResultToToast("loadWaypoint failed " + error.description)
@@ -558,7 +592,42 @@ class WaypointOneActivity : AppCompatActivity(), View.OnClickListener {
     private fun uploadWaypointMission() { // upload the mission
         getWaypointMissionOperator()!!.uploadMission { error ->
             if (error == null) {
-                setResultToToast("Mission upload successfully!")
+                val msg = "Mission upload successfully!"
+                mStatusTextView.text = msg
+                setResultToToast(msg)
+
+                var batPercentage = 0
+
+
+                DJIApplication.getProductInstance()?.battery?.setStateCallback {
+                    batPercentage = it.chargeRemainingInPercent
+                }
+
+
+                val totalDistanceMeters = waypointMissionBuilder?.calculateTotalDistance()
+                val totalTimeSecs = waypointMissionBuilder?.calculateTotalTime()
+
+                val time: String = if (totalTimeSecs != null) {
+                    val time = splitToComponentTimes(totalTimeSecs)
+
+                    val hours = time[0]
+                    val minutes = time[1]
+                    val seconds = time[2]
+                    String.format("%02d hrs:%02d mins:%02d secs", hours, minutes, seconds)
+                } else
+                    ""
+
+                mDistanceTimeTextView.text =
+                    "Total Distance: ${totalDistanceMeters ?: ""} Meters, Total time: $time smart Battery: $batPercentage%"
+
+                if (batPercentage > 18)
+//                    if ((totalTimeSecs!!.div(60)) > 20)
+                        startWaypointMission()
+//                    else
+//                        setResultToToast("Mission start failed: total time exceeded")
+                else
+                    setResultToToast("Mission start failed, error: Low Battery")
+
             } else {
                 setResultToToast("Mission upload failed, error: " + error.description + " retrying...")
                 getWaypointMissionOperator()?.retryUploadMission(null)
@@ -566,10 +635,31 @@ class WaypointOneActivity : AppCompatActivity(), View.OnClickListener {
         }
     }
 
+    fun splitToComponentTimes(seconds: Float): IntArray {
+        val longVal: Long = seconds.toLong()
+        val hours = longVal.toInt() / 3600
+        var remainder = longVal.toInt() - hours * 3600
+        val minutes = remainder / 60
+        remainder -= minutes * 60
+        val secs = remainder
+        return intArrayOf(hours, minutes, secs)
+    }
+
     private fun startWaypointMission() { // start mission
+
+
         getWaypointMissionOperator()?.startMission { error ->
-            setResultToToast("Mission Start: " + if (error == null) "Successfully" else error.description)
+            if (error == null) {
+                val msg = "Mission Start successfully!"
+                mStatusTextView.text = msg
+                setResultToToast("Mission Start: Successfully")
+                mStopButton.isEnabled = true
+            } else {
+                setResultToToast("Mission Start: " + error.description)
+            }
+
         }
+
     }
 
     private fun stopWaypointMission() { // stop mission
@@ -583,6 +673,33 @@ class WaypointOneActivity : AppCompatActivity(), View.OnClickListener {
         runOnUiThread { Toast.makeText(this, string, Toast.LENGTH_SHORT).show() }
     }
 
+    private fun startActivity(context: Context, activity: Class<*>?) {
+        // this will start the activity
+        val intent = Intent(context, activity)
+        context.startActivity(intent)
+    }
+
+
+    //When a TextureView's SurfaceTexture is ready for use, use it to initialize the codecManager
+    override fun onSurfaceTextureAvailable(surface: SurfaceTexture, width: Int, height: Int) {
+        if (codecManager == null) {
+            codecManager = DJICodecManager(this, surface, width, height)
+        }
+    }
+
+    //when a SurfaceTexture's size changes...
+    override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {}
+
+    //when a SurfaceTexture is about to be destroyed, uninitialize the codedManager
+    override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
+        codecManager?.cleanSurface()
+        codecManager = null
+        return false
+    }
+
+    //When a SurfaceTexture is updated...
+    override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {}
+
 
     override fun onRequestPermissionsResult(
         requestCode: Int,
@@ -593,15 +710,17 @@ class WaypointOneActivity : AppCompatActivity(), View.OnClickListener {
         locationPermissionHelper.onRequestPermissionsResult(requestCode, permissions, grantResults)
     }
 
+    fun checkGpsCoordination(latitude: Double, longitude: Double): Boolean {
+        // this will check if your gps coordinates are valid
+        return latitude > -90 && latitude < 90 && longitude > -180 && longitude < 180 && latitude != 0.0 && longitude != 0.0
+    }
+
     companion object {
         const val TAG = "WaypointOneActivity"
 
         private var waypointMissionBuilder: WaypointMission.Builder? = null
         // you will use this to add your waypoints
 
-        fun checkGpsCoordination(latitude: Double, longitude: Double): Boolean {
-            // this will check if your gps coordinates are valid
-            return latitude > -90 && latitude < 90 && longitude > -180 && longitude < 180 && latitude != 0.0 && longitude != 0.0
-        }
+
     }
 }

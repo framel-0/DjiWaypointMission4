@@ -28,8 +28,7 @@ class CameraActivity : AppCompatActivity(), TextureView.SurfaceTextureListener,
 
     //listener that is used to receive video data coming from the connected DJI product
     private var receivedVideoDataListener: VideoFeeder.VideoDataListener? = null
-    private var codecManager: DJICodecManager? =
-        null //handles the encoding and decoding of video data
+    private var codecManager: DJICodecManager? = null //handles the encoding and decoding of video data
 
     private lateinit var videoSurface: TextureView //Used to display the DJI product's camera video stream
     private lateinit var captureBtn: Button
