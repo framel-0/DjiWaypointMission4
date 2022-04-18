@@ -18,19 +18,12 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.content.res.AppCompatResources
 import com.mapbox.android.gestures.MoveGestureDetector
 import com.mapbox.geojson.Point
-import com.mapbox.mapboxsdk.annotations.IconFactory
 import com.mapbox.mapboxsdk.annotations.Marker
-import com.mapbox.mapboxsdk.annotations.MarkerOptions
-import com.mapbox.mapboxsdk.geometry.LatLng
-import com.mapbox.maps.CameraOptions
-import com.mapbox.maps.MapView
-import com.mapbox.maps.MapboxMap
-import com.mapbox.maps.Style
-import com.mapbox.maps.dsl.cameraOptions
+import com.mapbox.maps.*
 import com.mapbox.maps.extension.style.expressions.dsl.generated.interpolate
 import com.mapbox.maps.plugin.LocationPuck2D
-import com.mapbox.maps.plugin.animation.MapAnimationOptions.Companion.mapAnimationOptions
-import com.mapbox.maps.plugin.animation.flyTo
+import com.mapbox.maps.plugin.animation.MapAnimationOptions
+import com.mapbox.maps.plugin.animation.camera
 import com.mapbox.maps.plugin.annotation.annotations
 import com.mapbox.maps.plugin.annotation.generated.PointAnnotationOptions
 import com.mapbox.maps.plugin.annotation.generated.createPointAnnotationManager
@@ -77,6 +70,8 @@ class WaypointOneActivity : AppCompatActivity(), TextureView.SurfaceTextureListe
     private var droneLocationLat: Double = 0.0
     private var droneLocationLng: Double = 0.0
     private var droneMarker: Marker? = null
+    private val annotationApi = mapView.annotations
+    private val dronePointAnnotationManager = annotationApi.createPointAnnotationManager(mapView)
     private val markers: MutableMap<Int, Marker> = ConcurrentHashMap<Int, Marker>()
 
     private lateinit var locationPermissionHelper: LocationPermissionHelper
@@ -184,7 +179,7 @@ class WaypointOneActivity : AppCompatActivity(), TextureView.SurfaceTextureListe
         mMapboxMap.loadStyleUri(
             Style.MAPBOX_STREETS
         ) {
-//            initLocationComponent()
+            initLocationComponent()
             setupGesturesListener()
         }
 
@@ -197,7 +192,7 @@ class WaypointOneActivity : AppCompatActivity(), TextureView.SurfaceTextureListe
             this@WaypointOneActivity,
             R.drawable.red_marker
         )?.let {
-            val annotationApi = mapView.annotations
+//            val annotationApi = mapView.annotations
             val pointAnnotationManager = annotationApi.createPointAnnotationManager(mapView)
             // Set options for the resulting symbol layer.
             val pointAnnotationOptions: PointAnnotationOptions = PointAnnotationOptions()
@@ -383,15 +378,27 @@ class WaypointOneActivity : AppCompatActivity(), TextureView.SurfaceTextureListe
             return
         }
 
-        val pos = LatLng(droneLocationLat, droneLocationLng)
+        val pos = Point.fromLngLat(droneLocationLng, droneLocationLat)
         // the following will draw the aircraft on the screen
-        val markerOptions = MarkerOptions()
-            .position(pos)
-            .icon(IconFactory.getInstance(this).fromResource(R.drawable.aircraft))
-        runOnUiThread {
-            droneMarker?.remove()
-            if (checkGpsCoordination(droneLocationLat, droneLocationLng)) {
-                addAnnotationToMap(droneLocationLng, droneLocationLat)
+        bitmapFromDrawableRes(
+            this@WaypointOneActivity,
+            R.drawable.aircraft
+        )?.let {
+
+            // Set options for the resulting symbol layer.
+            val pointAnnotationOptions: PointAnnotationOptions = PointAnnotationOptions()
+                // Define a geographic coordinate.
+                .withPoint(pos)
+                // Specify the bitmap you assigned to the point annotation
+                // The bitmap will be added to map style automatically.
+                .withIconImage(it)
+            // Add the resulting pointAnnotation to the map.
+
+            runOnUiThread {
+                dronePointAnnotationManager.deleteAll()
+                if (checkGpsCoordination(droneLocationLat, droneLocationLng)) {
+                    dronePointAnnotationManager.create(pointAnnotationOptions)
+                }
             }
         }
     }
@@ -402,6 +409,7 @@ class WaypointOneActivity : AppCompatActivity(), TextureView.SurfaceTextureListe
         }
         val point = Point.fromLngLat(droneLocationLng, droneLocationLat)
         val zoomLevel = 18.0
+/*
         mMapboxMap.flyTo(
             cameraOptions {
                 center(point) // Sets the new camera position on click point
@@ -412,6 +420,20 @@ class WaypointOneActivity : AppCompatActivity(), TextureView.SurfaceTextureListe
             mapAnimationOptions {
                 duration(7000)
             }
+        )
+*/
+
+        val mapAnimationOptions = MapAnimationOptions.Builder().duration(1500L).build()
+        mapView.camera.easeTo(
+            CameraOptions.Builder()
+                // Centers the camera to the lng/lat specified.
+                .center(point)
+                // specifies the zoom value. Increase or decrease to zoom in or zoom out
+                .zoom(zoomLevel)
+                // specify frame of reference from the center.
+                .padding(EdgeInsets(500.0, 0.0, 0.0, 0.0))
+                .build(),
+            mapAnimationOptions
         )
     }
 
@@ -622,7 +644,7 @@ class WaypointOneActivity : AppCompatActivity(), TextureView.SurfaceTextureListe
 
                 if (batPercentage > 18)
 //                    if ((totalTimeSecs!!.div(60)) > 20)
-                        startWaypointMission()
+                    startWaypointMission()
 //                    else
 //                        setResultToToast("Mission start failed: total time exceeded")
                 else
